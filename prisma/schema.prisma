@@ -1,0 +1,60 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// Model untuk Produk/Menu Item
+model Produk {
+    id             Int     @id @default(autoincrement())
+    nama           String
+    harga          Float
+    stok           Int
+    deskripsi      String?
+    image          String?            // Path/URL gambar produk
+    kategori       Int     @default(1) // 1=makanan, 2=minuman, 3=snack
+    diskon         Float   @default(0)    // Persentase diskon
+    pajak          Float   @default(0.1)  // Persentase pajak
+    created_at     DateTime @default(now())
+    updated_at     DateTime @updatedAt
+
+    // Relasi dengan detail pesanan
+    detail_pesanan DetailPesanan[]
+
+    @@map("produk")
+}
+
+// Model untuk Pesanan (Header)
+model Pesanan {
+    id             Int      @id @default(autoincrement())
+    tanggal        DateTime @default(now())
+    total_harga    Float
+    status         String   @default("unpaid") // unpaid,paid
+
+    // Relasi dengan detail pesanan
+    detail_pesanan DetailPesanan[]
+
+    @@map("pesanan")
+}
+
+// Model untuk Detail Pesanan
+model DetailPesanan {
+    id            Int     @id @default(autoincrement())
+    jumlah        Int
+    harga_satuan  Float   // Harga saat transaksi (snapshot)
+    diskon_item   Float   @default(0) // Diskon saat transaksi
+    tax_item      Float   @default(0) // Tax saat transaksi
+    subtotal      Float
+
+    // Foreign keys
+    pesanan_id    Int
+    pesanan       Pesanan  @relation(fields: [pesanan_id], references: [id])
+
+    produk_id     Int
+    produk        Produk @relation(fields: [produk_id], references: [id])
+
+    @@map("detail_pesanan")
+}
