@@ -150,6 +150,19 @@
                 ]">
                   {{ pesanan.status === 'paid' ? 'Sudah Dibayar' : 'Belum Dibayar' }}
                 </span>
+                
+                <!-- Print Receipt Button -->
+                <button 
+                  v-if="pesanan.status === 'paid'"
+                  @click="printReceipt(pesanan)"
+                  class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                  </svg>
+                  Print Struk
+                </button>
+                
                 <button 
                   v-if="pesanan.status === 'unpaid'"
                   @click="updateOrderStatus(pesanan.id, 'paid')"
@@ -200,6 +213,124 @@
       </div>
     </div>
 
+    <!-- Receipt Print Modal -->
+    <div v-if="showReceiptModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl max-h-90vh overflow-hidden">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center p-6 border-b">
+          <h2 class="text-xl font-bold text-gray-800">Struk Pembayaran</h2>
+          <button @click="closeReceiptModal" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Receipt Content -->
+        <div id="receipt-content" class="p-6 bg-white" style="font-family: 'Courier New', monospace;">
+          <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">KEDAI KOPI</h1>
+            <p class="text-sm text-gray-600">Jl.Raya Mawar Merah No.23,<br> Pondok Kopi. Jakarta Timur</p>
+            <p class="text-sm text-gray-600">Telp: (021) 86606633</p>
+            <div class="border-t border-dashed border-gray-400 my-4"></div>
+          </div>
+
+          <div v-if="selectedReceipt" class="space-y-2 text-sm">
+            <!-- Order Info -->
+            <div class="flex justify-between">
+              <span>No. Pesanan:</span>
+              <span class="font-semibold">#{{ selectedReceipt.id }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Tanggal:</span>
+              <span>{{ formatReceiptDate(selectedReceipt.tanggal) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Kasir:</span>
+              <span>Admin</span>
+            </div>
+            
+            <div class="border-t border-dashed border-gray-400 my-4"></div>
+
+            <!-- Items -->
+            <div class="space-y-2">
+              <div v-for="detail in selectedReceipt.detail_pesanan" :key="detail.id">
+                <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                    <div class="font-medium">{{ detail.produk.nama }}</div>
+                    <div class="text-xs text-gray-600">
+                      {{ detail.jumlah }} x Rp {{ formatCurrency(detail.harga_satuan) }}
+                      <span v-if="detail.diskon_item > 0" class="text-red-600">
+                        (-{{ detail.diskon_item }}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div class="font-medium text-right">
+                    Rp {{ formatCurrency(detail.subtotal) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t border-dashed border-gray-400 my-4"></div>
+
+            <!-- Summary -->
+            <div class="space-y-1">
+              <div class="flex justify-between">
+                <span>Subtotal:</span>
+                <span>Rp {{ formatCurrency(getSubtotal(selectedReceipt)) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Pajak:</span>
+                <span>Rp {{ formatCurrency(getTax(selectedReceipt)) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Diskon:</span>
+                <span class="text-red-600">-Rp {{ formatCurrency(getDiscount(selectedReceipt)) }}</span>
+              </div>
+              <div class="border-t border-gray-400 pt-2">
+                <div class="flex justify-between font-bold text-lg">
+                  <span>TOTAL:</span>
+                  <span>Rp {{ formatCurrency(selectedReceipt.total_harga) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-t border-dashed border-gray-400 my-4"></div>
+
+            <!-- Footer -->
+            <div class="text-center text-xs text-gray-600 space-y-1">
+              <p>Terima kasih atas kunjungan Anda!</p>
+              <p>Barang yang sudah dibeli tidak dapat ditukar</p>
+              <p>Simpan struk ini sebagai bukti pembayaran</p>
+              <div class="mt-4">
+                <p>{{ new Date().toLocaleString('id-ID') }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex gap-3 p-6 border-t bg-gray-50">
+          <button 
+            @click="closeReceiptModal"
+            class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+          >
+            Tutup
+          </button>
+          <button 
+            @click="printReceiptContent"
+            class="flex-1 bg-amber-600 text-white py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            Print
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Success Toast -->
     <div v-if="toast.show" 
          class="fixed top-4 right-4 p-4 rounded-xl text-white z-50 transition-all duration-300 shadow-lg bg-green-500">
@@ -240,6 +371,8 @@ const loading = ref(true)
 const error = ref(null)
 const updating = ref(null)
 const toast = ref({ show: false, message: '' })
+const showReceiptModal = ref(false)
+const selectedReceipt = ref(null)
 
 // Load orders on mount
 onMounted(() => {
@@ -301,6 +434,85 @@ const updateOrderStatus = async (pesananId, status) => {
   }
 }
 
+const printReceipt = (pesanan) => {
+  selectedReceipt.value = pesanan
+  showReceiptModal.value = true
+}
+
+const closeReceiptModal = () => {
+  showReceiptModal.value = false
+  selectedReceipt.value = null
+}
+
+const printReceiptContent = () => {
+  const printWindow = window.open('', '_blank')
+  const receiptContent = document.getElementById('receipt-content').innerHTML
+  
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Struk Pembayaran #${selectedReceipt.value.id}</title>
+      <style>
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          line-height: 1.4;
+          margin: 0;
+          padding: 20px;
+          width: 58mm;
+          max-width: 58mm;
+        }
+        @media print {
+          body {
+            margin: 0;
+            padding: 10px;
+          }
+          @page {
+            size: 58mm auto;
+            margin: 0;
+          }
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        .font-medium { font-weight: 500; }
+        .text-sm { font-size: 11px; }
+        .text-xs { font-size: 10px; }
+        .text-lg { font-size: 14px; }
+        .text-2xl { font-size: 18px; }
+        .text-gray-600 { color: #6b7280; }
+        .text-red-600 { color: #dc2626; }
+        .border-t { border-top: 1px solid #d1d5db; }
+        .border-dashed { border-style: dashed; }
+        .border-gray-400 { border-color: #9ca3af; }
+        .my-4 { margin: 16px 0; }
+        .pt-2 { padding-top: 8px; }
+        .space-y-1 > * + * { margin-top: 4px; }
+        .space-y-2 > * + * { margin-top: 8px; }
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .items-start { align-items: flex-start; }
+        .flex-1 { flex: 1; }
+        .mt-4 { margin-top: 16px; }
+        .mb-6 { margin-bottom: 24px; }
+      </style>
+    </head>
+    <body>
+      ${receiptContent}
+    </body>
+    </html>
+  `)
+  
+  printWindow.document.close()
+  printWindow.focus()
+  
+  setTimeout(() => {
+    printWindow.print()
+    printWindow.close()
+  }, 250)
+}
+
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('id-ID').format(Math.round(amount))
 }
@@ -313,6 +525,40 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const formatReceiptDate = (dateString) => {
+  return new Date(dateString).toLocaleString('id-ID', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const getSubtotal = (pesanan) => {
+  return pesanan.detail_pesanan.reduce((total, detail) => {
+    const basePrice = detail.harga_satuan * detail.jumlah
+    return total + basePrice
+  }, 0)
+}
+
+const getTax = (pesanan) => {
+  return pesanan.detail_pesanan.reduce((total, detail) => {
+    const basePrice = detail.harga_satuan * detail.jumlah
+    const discountedPrice = basePrice * (1 - detail.diskon_item / 100)
+    const tax = discountedPrice * detail.tax_item
+    return total + tax
+  }, 0)
+}
+
+const getDiscount = (pesanan) => {
+  return pesanan.detail_pesanan.reduce((total, detail) => {
+    const basePrice = detail.harga_satuan * detail.jumlah
+    const discount = basePrice * (detail.diskon_item / 100)
+    return total + discount
+  }, 0)
 }
 </script>
 
@@ -334,5 +580,25 @@ const formatDate = (dateString) => {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #b45309;
+}
+
+.max-h-90vh {
+  max-height: 90vh;
+}
+
+/* Print specific styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-content, #receipt-content * {
+    visibility: visible;
+  }
+  #receipt-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 58mm;
+  }
 }
 </style>

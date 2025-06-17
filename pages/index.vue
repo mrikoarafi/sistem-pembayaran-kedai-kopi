@@ -682,6 +682,19 @@ const proceedToPayment = async () => {
       body: { cart: cart.value }
     })
     
+    // Update stock locally for each item in cart
+    cart.value.forEach(cartItem => {
+      const produkIndex = produkList.value.findIndex(p => p.id === cartItem.produk.id)
+      if (produkIndex !== -1) {
+        // Decrease stock by quantity ordered
+        produkList.value[produkIndex].stok -= cartItem.quantity
+        // Ensure stock doesn't go below 0
+        if (produkList.value[produkIndex].stok < 0) {
+          produkList.value[produkIndex].stok = 0
+        }
+      }
+    })
+    
     // Show success modal
     orderNumber.value = response.id
     orderTotal.value = response.total_harga
